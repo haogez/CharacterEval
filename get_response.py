@@ -3,7 +3,7 @@ import json
 from pathlib import Path
 from typing import Dict, Any
 
-from transformers import AutoTokenizer, AutoModel
+from transformers import AutoTokenizer, AutoModelForCausalLM
 
 
 def concat_messages(conversations, role, system):
@@ -48,6 +48,20 @@ def format_role_information(role_information: Any) -> str:
     return str(role_information)
 
 
+def to_chatglm_history(messages: Any):
+    """Convert message list to chatglm3 history tuples."""
+
+    history = []
+    pending_user = None
+    for msg in messages:
+        if msg["role"] == "user":
+            pending_user = msg["content"]
+        elif msg["role"] == "assistant" and pending_user is not None:
+            history.append((pending_user, msg["content"]))
+            pending_user = None
+    return history
+
+
 def get_response_chatglm(data: Dict[str, Any], role_informations: Dict[str, Any], model, tokenizer):
     context = data["context"]
     role = data["role"]
@@ -58,7 +72,8 @@ def get_response_chatglm(data: Dict[str, Any], role_informations: Dict[str, Any]
 """
 
     messages, query = concat_messages(make_inputs(context), role, role_system)
-    response, _ = model.chat(tokenizer, query, messages)
+    history = to_chatglm_history(messages)
+    response, _ = model.chat(tokenizer, query, history=history)
 
     data["model_output"] = response
 
@@ -67,8 +82,9 @@ def get_response_chatglm(data: Dict[str, Any], role_informations: Dict[str, Any]
 
 def load_model(model_path: str):
     tokenizer = AutoTokenizer.from_pretrained(model_path, trust_remote_code=True)
-    model = AutoModel.from_pretrained(model_path, trust_remote_code=True).half().cuda()
-    model = model.eval()
+    model = AutoModelForCausalLM.from_pretrained(
+        model_path, trust_remote_code=True, device_map="auto"
+    ).eval()
     return model, tokenizer
 
 
