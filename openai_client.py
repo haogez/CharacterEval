@@ -4,11 +4,8 @@ OpenAI API客户端封装模块与角色生成逻辑。
 
 import os
 import json
-from typing import Dict, List, Any, Optional, Union
-import asyncio
+from typing import Dict, List, Any, Optional
 from openai import AsyncOpenAI
-from langchain.chat_models import ChatOpenAI
-from langchain.schema import HumanMessage, SystemMessage, AIMessage
 
 
 class OpenAIClient:
@@ -27,16 +24,6 @@ class OpenAIClient:
             client_kwargs["base_url"] = self.base_url
 
         self.client = AsyncOpenAI(**client_kwargs)
-
-        langchain_kwargs = {
-            "model": model,
-            "temperature": 0.7,
-            "openai_api_key": self.api_key,
-        }
-        if self.base_url:
-            langchain_kwargs["openai_api_base"] = self.base_url
-
-        self.chat_model = ChatOpenAI(**langchain_kwargs)
 
     async def generate_response(self, system_prompt: str, user_prompt: str) -> str:
         try:
@@ -95,10 +82,6 @@ class OpenAIClient:
             except Exception as inner_error:  # noqa: BLE001
                 print(f"✗ JSON 提取失败: {inner_error}")
                 return {"text": response_text, "error": str(inner_error)}
-
-    def langchain_generate(self, messages: List[Union[SystemMessage, HumanMessage, AIMessage]]) -> str:
-        response = self.chat_model.generate([messages])
-        return response.generations[0][0].text
 
     async def create_embeddings(self, texts: List[str]) -> List[List[float]]:
         response = await self.client.embeddings.create(
