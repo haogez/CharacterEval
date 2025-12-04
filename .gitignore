@@ -1,0 +1,25 @@
+# === 模型权重（禁止提交） ===
+BaichuanCharRM/
+models/
+
+# === 缓存和临时文件 ===
+__pycache__/
+*.pyc
+*.pyo
+*.tmp
+*.log
+
+# === 实验过程中生成的大文件（忽略） ===
+results/generation_*.jsonl
+results/generation_trans_*.jsonl
+
+# === baseline 原始文件（强制保留） ===
+!results/generation_trans_baichuan_7b.jsonl
+!results/generation_trans_chatglm3_6b.jsonl
+!results/generation_trans_internlm_7b.jsonl
+!results/generation_trans_qwen_7b.jsonl
+!results/generation_trans_xverse_7b.jsonl
+
+# === VSCode / Docker / 系统文件 ===
+*.swp
+*.swo
