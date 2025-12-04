@@ -52,24 +52,28 @@ pip install -r requirements.txt
   ```
 - 生成脚本默认强制 `relationship_to_protagonist` 为“本人”。如需放宽时间线，可将 `--timeline_mode` 改为 `relaxed`。
 
-## 5. 生成对话回复（ChatGLM3）
-- 使用 ChatGLM3 并加载新档案：
+## 5. 生成对话回复（多模型可扩展，当前支持 ChatGLM3）
+- 使用 ChatGLM3 并加载新档案，同时通过 `--model_name` 决定输出文件名：
   ```bash
   CUDA_VISIBLE_DEVICES=0 python get_response.py \
+    --model_name chatglm3 \
     --model_path /models/chatglm3-6b \
     --profile_path results/generated_character_profiles.json \
     --test_path data/test_data.jsonl \
-    --output_path results/generation.jsonl
+    --output_path results
   ```
+  将在 `results/` 下生成 `generation_chatglm3.jsonl`。
 - 若未提供生成档案，脚本会自动回退到 `data/character_profiles.json`。
+- 未来可通过增加对应模型分支支持 Qwen、DeepSeek、Llama、OpenAI API 等，输出文件名会自动追加模型标识（例如 `generation_qwen.jsonl`、`generation_gpt4.jsonl`）。
 
 ## 6. 转换格式以适配奖励模型
 ```bash
 python transform_format.py \
   --id2metric_path data/id2metric.jsonl \
-  --generation_path results/generation.jsonl \
+  --generation_path results/generation_chatglm3.jsonl \
   --output_path results/generation_trans.jsonl
 ```
+- 若更换其他模型，请将 `--generation_path` 替换为对应的输出文件（例如 `results/generation_qwen.jsonl`）。
 
 ## 7. 运行 CharacterRM 评估（需 GPU）
 ```bash

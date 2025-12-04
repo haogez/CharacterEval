@@ -1,9 +1,9 @@
 import argparse
 import json
 from pathlib import Path
-from typing import Dict, Any
+from typing import Any, Dict
 
-from transformers import AutoTokenizer, AutoModelForCausalLM
+from transformers import AutoModelForCausalLM, AutoTokenizer
 
 
 def concat_messages(conversations, role, system):
@@ -48,9 +48,8 @@ def format_role_information(role_information: Any) -> str:
     return str(role_information)
 
 
-def to_chatglm_history(messages: Any):
-    """Convert message list to chatglm3 history tuples."""
-
+def to_chatglm_history(messages):
+    """Convert message list to chatglm3 history format."""
     history = []
     pending_user = None
     for msg in messages:
@@ -76,11 +75,10 @@ def get_response_chatglm(data: Dict[str, Any], role_informations: Dict[str, Any]
     response, _ = model.chat(tokenizer, query, history=history)
 
     data["model_output"] = response
-
     return data
 
 
-def load_model(model_path: str):
+def load_chatglm(model_path: str):
     tokenizer = AutoTokenizer.from_pretrained(model_path, trust_remote_code=True)
     model = AutoModelForCausalLM.from_pretrained(
         model_path, trust_remote_code=True, device_map="auto"
@@ -88,37 +86,42 @@ def load_model(model_path: str):
     return model, tokenizer
 
 
-def parse_args() -> argparse.Namespace:
-    parser = argparse.ArgumentParser(description="调用角色扮演模型生成回复")
-    parser.add_argument("--model_path", required=True, help="对话模型的本地路径")
-    parser.add_argument("--profile_path", type=Path, default=Path("results/generated_character_profiles.json"), help="角色档案路径")
-    parser.add_argument("--test_path", type=Path, default=Path("data/test_data.jsonl"), help="测试对话数据路径")
-    parser.add_argument("--output_path", type=Path, default=Path("results/generation.jsonl"), help="生成结果输出路径")
+def parse_args():
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--model_path", required=True, help="模型本地路径")
+    parser.add_argument("--model_name", required=True, help="模型名称，用于区分输出文件")
+    parser.add_argument("--profile_path", type=Path, default=Path("results/generated_character_profiles.json"))
+    parser.add_argument("--test_path", type=Path, default=Path("data/test_data.jsonl"))
+    parser.add_argument("--output_path", type=Path, default=Path("results"))
     return parser.parse_args()
 
 
-def main() -> None:
+def main():
     args = parse_args()
-    if not args.profile_path.exists():
-        print(f"未找到生成的角色档案 {args.profile_path} ，回退到原始档案 data/character_profiles.json")
-        profile_path = Path("data/character_profiles.json")
-    else:
-        profile_path = args.profile_path
 
+    output_file = args.output_path / f"generation_{args.model_name}.jsonl"
+
+    profile_path = args.profile_path if args.profile_path.exists() else Path("data/character_profiles.json")
     with args.test_path.open("r", encoding="utf-8") as f:
         datas = json.load(f)
     with profile_path.open("r", encoding="utf-8") as f:
         role_informations = json.load(f)
 
-    model, tokenizer = load_model(args.model_path)
+    print(f"正在加载模型：{args.model_name}  from {args.model_path}")
+    if args.model_name.lower().startswith("chatglm"):
+        model, tokenizer = load_chatglm(args.model_path)
+    else:
+        raise NotImplementedError(f"暂不支持的模型类型：{args.model_name}")
 
     results = []
     for data in datas:
         results.append(get_response_chatglm(data, role_informations, model, tokenizer))
 
-    args.output_path.parent.mkdir(parents=True, exist_ok=True)
-    with args.output_path.open("w", encoding="utf-8") as f:
+    args.output_path.mkdir(parents=True, exist_ok=True)
+    with output_file.open("w", encoding="utf-8") as f:
         f.write(json.dumps(results, ensure_ascii=False, indent=4))
+
+    print(f"✓ 已保存输出到：{output_file}")
 
 
 if __name__ == "__main__":
